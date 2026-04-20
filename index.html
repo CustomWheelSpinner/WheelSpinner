@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wheel Spinner</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --accent-2: #16a34a;
+      --danger: #ef4444;
+      --border: #334155;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    textarea, input[type="number"], input[type="text"], select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 220px;
+      margin-bottom: 14px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease, background 0.2s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    .primary { background: var(--accent); color: #052e16; }
+    .primary:hover { background: var(--accent-2); }
+    .secondary { background: #334155; color: var(--text); }
+    .danger { background: #7f1d1d; color: #fecaca; }
+
+    .wheel-wrap {
+      display: grid;
+      place-items: center;
+      position: relative;
+      min-height: 700px;
+    }
+
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 36px solid #f8fafc;
+      position: absolute;
+      top: 22px;
+      z-index: 2;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+
+    canvas {
+      width: min(78vw, 640px);
+      height: min(78vw, 640px);
+      max-width: 640px;
+      max-height: 640px;
+      background: transparent;
+    }
+
+    .result {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 1.2rem;
+      min-height: 32px;
+    }
+
+    .winner {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #bbf7d0;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .wheel-wrap { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel">
+      <h1>Wheel Spinner</h1>
+      <p>Enter one option per line, then spin. You can change the spin duration and choose whether entries can repeat across spins.</p>
+
+      <label for="options">Options</label>
+      <textarea id="options">Pizza
+Sushi
+Burgers
+Tacos
+Pasta
+Salad</textarea>
+
+      <div class="row">
+        <div>
+          <label for="duration">Spin duration (seconds)</label>
+          <input id="duration" type="number" min="2" max="15" step="0.5" value="5" />
+        </div>
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="repeat">Allow repeat winners</option>
+            <option value="remove">Remove winner after spin</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="secondary" id="toggleLastPick" style="margin-bottom:10px;">Advanced Settings</button>
+      <div id="lastPickSection" style="display:none;">
+        <label for="lastPick">Always pick this name last</label>
+        <input id="lastPick" type="text" placeholder="Type an exact option name, like Salad" />
+        <p style="margin-top:8px; margin-bottom:0; font-size:0.95rem;">When set, that option will not be chosen while any other option is still available.</p>
+      </div>
+
+      <div class="buttons">
+        <button class="primary" id="spinBtn">Spin</button>
+        <button class="secondary" id="shuffleBtn">Shuffle</button>
+        <button class="secondary" id="resetBtn">Reset defaults</button>
+        <button class="danger" id="clearBtn">Clear result</button>
+      </div>
+
+      <div class="footer-note">Tip: upload this file to Netlify, GitHub Pages, or Vercel to publish it online.</div>
+    </section>
+
+    <section class="panel wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="700" height="700"></canvas>
+      <div class="result" id="result">Ready to spin</div>
+    </section>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const optionsInput = document.getElementById('options');
+    const spinBtn = document.getElementById('spinBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const resultEl = document.getElementById('result');
+    const durationInput = document.getElementById('duration');
+    const modeInput = document.getElementById('mode');
+    const lastPickInput = document.getElementById('lastPick');
+    const toggleLastPickBtn = document.getElementById('toggleLastPick');
+    const lastPickSection = document.getElementById('lastPickSection');
+
+    const defaultOptions = ['Pizza', 'Sushi', 'Burgers', 'Tacos', 'Pasta', 'Salad'];
+    const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'];
+
+    let rotation = 0;
+    let spinning = false;
+
+    function getOptions() {
+      return optionsInput.value.split('\n').map(v => v.trim()).filter(Boolean);
+    }
+
+    function setOptions(list) {
+      optionsInput.value = list.join('\n');
+    }
+
+    function drawWheel() {
+      const options = getOptions();
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = 300;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (options.length === 0) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Add options to begin', cx, cy);
+        return;
+      }
+
+      const arc = (Math.PI * 2) / options.length;
+
+      for (let i = 0; i < options.length; i++) {
+        const start = rotation + i * arc - Math.PI / 2;
+        const end = start + arc;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(start + arc / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = options.length > 14 ? '18px sans-serif' : '22px sans-serif';
+        ctx.fillText(options[i], radius - 20, 8);
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 72, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.stroke();
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('SPIN', cx, cy + 7);
+    }
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function chooseWinnerIndex(options) {
+      if (!options.length) return -1;
+      const reservedName = lastPickInput.value.trim();
+      const reservedIndex = reservedName ? options.findIndex(option => option === reservedName) : -1;
+      const eligibleIndexes = options.map((_, index) => index).filter(index => reservedIndex === -1 || options.length === 1 || index !== reservedIndex);
+      if (!eligibleIndexes.length) return -1;
+      return eligibleIndexes[Math.floor(Math.random() * eligibleIndexes.length)];
+    }
+
+    function spin() {
+      const options = getOptions();
+      if (spinning || options.length < 2) {
+        if (options.length < 2) resultEl.textContent = 'Please enter at least 2 options.';
+        return;
+      }
+
+      const reservedName = lastPickInput.value.trim();
+      if (reservedName && !options.includes(reservedName)) {
+        resultEl.textContent = 'The last-pick name must exactly match one of the options.';
+        return;
+      }
+
+      const winnerIndex = chooseWinnerIndex(options);
+      if (winnerIndex === -1) {
+        resultEl.textContent = 'Unable to choose a winner with the current settings.';
+        return;
+      }
+
+      spinning = true;
+      spinBtn.disabled = true;
+      resultEl.textContent = 'Spinning...';
+      resultEl.className = 'result';
+
+      const duration = Math.max(2, Math.min(15, Number(durationInput.value) || 5)) * 1000;
+      const startRotation = rotation;
+      const slice = (Math.PI * 2) / options.length;
+      const targetCenter = winnerIndex * slice + slice / 2;
+      const currentNormalized = ((rotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const finalNormalized = (Math.PI * 2 - targetCenter) % (Math.PI * 2);
+      let delta = finalNormalized - currentNormalized;
+      if (delta < 0) delta += Math.PI * 2;
+      const extraTurns = (6 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+      const targetRotation = startRotation + extraTurns + delta;
+      const startTime = performance.now();
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        rotation = startRotation + (targetRotation - startRotation) * easeOutCubic(t);
+        drawWheel();
+
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          spinning = false;
+          spinBtn.disabled = false;
+          const latestOptions = getOptions();
+          const finalWinner = latestOptions[winnerIndex];
+          resultEl.innerHTML = `Winner: <span class="winner">${escapeHtml(finalWinner)}</span>`;
+
+          if (modeInput.value === 'remove' && latestOptions.length > 1) {
+            latestOptions.splice(winnerIndex, 1);
+            setOptions(latestOptions);
+            setTimeout(drawWheel, 0);
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function shuffleOptions() {
+      const options = getOptions();
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [options[i], options[j]] = [options[j], options[i]];
+      }
+      setOptions(options);
+      drawWheel();
+    }
+
+    function escapeHtml(str) {
+      return str.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    }
+
+    optionsInput.addEventListener('input', drawWheel);
+    spinBtn.addEventListener('click', spin);
+    shuffleBtn.addEventListener('click', shuffleOptions);
+    clearBtn.addEventListener('click', () => {
+      resultEl.textContent = 'Ready to spin';
+      resultEl.className = 'result';
+    });
+    toggleLastPickBtn.addEventListener('click', () => {
+      const isHidden = lastPickSection.style.display === 'none';
+      lastPickSection.style.display = isHidden ? 'block' : 'none';
+    });
+    resetBtn.addEventListener('click', () => {
+      setOptions(defaultOptions);
+      durationInput.value = 5;
+      modeInput.value = 'repeat';
+      lastPickInput.value = '';
+      resultEl.textContent = 'Ready to spin';
+      resultEl.className = 'result';
+      rotation = 0;
+      drawWheel();
+    });
+
+    drawWheel();
+  </script>
+</body>
+</html>
